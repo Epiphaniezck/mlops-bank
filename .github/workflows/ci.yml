@@ -1,0 +1,66 @@
+name: MLOps CI Pipeline - Bank Marketing
+
+on:
+  push:
+    branches:
+      - "feature/**"
+      - "develop"
+
+jobs:
+  train:
+    name: Entrainement du modele
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Configuration de Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Installation des dependances
+        run: pip install -r requirements.txt
+
+      - name: Entrainement du modele
+        run: python train.py
+
+      - name: Affichage des metriques
+        run: cat artifacts/metrics.txt
+
+      - name: Upload des artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-artifacts
+          path: artifacts/
+          retention-days: 7
+
+  build-and-push:
+    name: Build et publication Docker
+    runs-on: ubuntu-latest
+    needs: train
+    if: github.ref == 'refs/heads/develop'
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Telechargement des artefacts
+        uses: actions/download-artifact@v4
+        with:
+          name: model-artifacts
+          path: artifacts/
+
+      - name: Login GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build et Push de l image Docker
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/bank-marketing-api:latest
