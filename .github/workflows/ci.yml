@@ -64,3 +64,4 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/bank-marketing-api:latest
+          
